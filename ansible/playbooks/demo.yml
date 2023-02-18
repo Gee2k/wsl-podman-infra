@@ -1,0 +1,156 @@
+- name: wsl podman infra demo
+  hosts: wsl
+  vars:
+    zookeeper: 
+      name: "zookeeper"
+      image: "docker.io/zookeeper:3.8.0"
+    kafka:
+      name: "kafka"
+      image: "docker.io/bitnami/kafka:3.2.0"
+    postgres:
+      name: "postgres"
+      image: "docker.io/postgres:14.4"
+  collections:
+    - containers.podman
+  tasks:
+    - name: print config
+      tags:
+      - provision
+      ansible.builtin.debug:
+        msg: "windows user: {{ user }}, home: {{ lookup('env', 'HOME')}}"
+
+    #
+    # zookeeper
+    #
+
+    - name: pull {{ zookeeper.name }} image {{ zookeeper.image }}
+      tags:
+      - pull
+      - provision
+      podman_image:
+        name: "{{ zookeeper.image }}"
+
+    - name: run {{ zookeeper.name }}
+      tags:
+      - run
+      - provision
+      podman_container:
+        name: "{{ zookeeper.name }}"
+        image: "{{ zookeeper.image }}"
+        state: started
+        ports:
+          - 2181:2181
+        env:
+          ALLOW_ANONYMOUS_LOGIN="yes"
+      
+    #
+    # kafka
+    #
+
+    - name: pull {{ kafka.name }} image {{ kafka.image }}
+      tags:
+      - pull
+      - provision
+      podman_image:
+        name: "{{ kafka.image }}"
+
+    - name: run {{ kafka.name }}
+      tags:
+      - run
+      - provision
+      podman_container:
+        name: "{{ kafka.name }}"
+        image: "{{ kafka.image }}"
+        state: started
+        ports:
+          - 127.0.0.1:9092:9092
+          - 127.0.0.1:9093:9093
+        etc_hosts:
+          "wsl": "{{ ansible_default_ipv4.address }}"
+        env:
+          KAFKA_BROKER_ID="1"
+          KAFKA_CFG_LISTENERS="PLAINTEXT://:9092,EXTERNAL://:9093"
+          KAFKA_CFG_ADVERTISED_LISTENERS="PLAINTEXT://:9092"
+          KAFKA_CFG_ZOOKEEPER_CONNECT="wsl:2181"
+          ALLOW_PLAINTEXT_LISTENER="yes"
+          KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP="CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT"
+          KAFKA_CFG_LISTENERS="CLIENT://:9092,EXTERNAL://:9093"
+          KAFKA_CFG_ADVERTISED_LISTENERS="CLIENT://localhost:9092,EXTERNAL://localhost:9093"
+          KAFKA_CFG_INTER_BROKER_LISTENER_NAME="CLIENT"
+          KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE="true"
+        requires:
+          - "{{ zookeeper.name }}"
+
+    #
+    # postgres
+    #
+
+    - name: pull {{ postgres.name }} image {{ postgres.image }}
+      tags:
+      - pull
+      - provision
+      podman_image:
+        name: "{{ postgres.image }}"
+
+    - name: run {{ postgres.name }}
+      tags:
+      - run
+      - provision
+      podman_container:
+        name: "{{ postgres.name }}"
+        image: "{{ postgres.image }}"
+        state: started
+        ports:
+          - "127.0.0.1:5432:5432/tcp"
+          # - "{{ ansible_default_ipv4.address }}:5432:5432/tcp"
+        env:
+          POSTGRES_PASSWORD=postgres
+          POSTGRES_USER=postgres
+          POSTGRES_DB=test_db
+
+      #
+      # removal tasks
+      #
+
+    - name: remove {{ zookeeper.name }} container
+      tags:
+      - remove
+      podman_container:
+        name: "{{ zookeeper.name }}"
+        state: absent
+    
+    - name: remove {{ zookeeper.name }} image
+      tags:
+      - remove
+      podman_image:
+        name: "{{ zookeeper.image }}"
+        state: absent
+
+
+    - name: remove {{ kafka.name }} container
+      tags:
+      - remove
+      podman_container:
+        name: "{{ kafka.name }}"
+        state: absent
+    
+    - name: remove {{ kafka.name }} image
+      tags:
+      - remove
+      podman_image:
+        name: "{{ kafka.image }}"
+        state: absent
+
+    - name: remove {{ postgres.name }} container
+      tags:
+      - remove
+      podman_container:
+        name: "{{ postgres.name }}"
+        state: absent
+    
+    - name: remove {{ postgres.name }} image
+      tags:
+      - remove
+      podman_image:
+        name: "{{ postgres.image }}"
+        state: absent

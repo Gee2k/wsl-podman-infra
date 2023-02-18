@@ -54,6 +54,8 @@ function Menu{
     Write-Host "----------------[ remove ]----------------"
     Write-Host "[6] fix podman after restart"
     Write-Host "[7] remove all (vpnkit and distro)"
+    Write-Host "[8] podman status"
+
     return Read-Host "Select Setup (default 1)"
 }
 
@@ -199,7 +201,7 @@ function Provision{
     Write-Debug "Provisioning distro"
     wsl ansible-galaxy collection install containers.podman
 
-    wsl wslpath $PWD.Path.Replace('\','/') '|' xargs -i ansible-playbook '{}/ansible/playbooks/test.yml' -i '{}/ansible/hosts' --connection-local --extra-vars="user-$env:username" --tags "provision"
+    wsl wslpath $PWD.Path.Replace('\','/') '|' xargs -i ansible-playbook '{}/ansible/playbooks/demo.yml' -i '{}/ansible/hosts' --connection=local --extra-vars="user=$env:username" --tags "provision"
 }
 
 ### util
@@ -208,7 +210,7 @@ function FixPodman{
     wsl podman stop -a
     wsl podman system prune -f
     wsl rm -rf /tmp/podman-run-'$('id -u')'/libpod/tmp
-    wsl wslpath $PWD.Path.Replace('\','/') '|' xargs -i ansible-playbook '{}/ansible/playbooks/test.yml' -i '{}/ansible/hosts' --connection-local --tags "remove"
+    wsl wslpath $PWD.Path.Replace('\','/') '|' xargs -i ansible-playbook '{}/ansible/playbooks/demo.yml' -i '{}/ansible/hosts' --connection=local --tags "remove"
     Provision
 
     Write-Debug "if this run showed errors, please repeat"
@@ -250,11 +252,14 @@ else {
             Provision
             Finish(0)
         }
-        5 {
+        6 {
             FixPodman
         }
-        6 {
+        7 {
             RemoveAll
+        }
+        8 {
+            wsl podman ps -a
         }
         Default {
             InstallVpnkit
