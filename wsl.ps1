@@ -116,7 +116,7 @@ function InstallVpnkit{
 
 function RemoveVpnKit($distro){
     Write-Debug "removing $distro"
-    wsl.exe -d wsl-vpnkit service wsl-vpnkit stop
+    wsl -d wsl-vpnkit service wsl-vpnkit stop
     wsl -t $distro
     wsl --unregister $distro
 }
@@ -219,9 +219,11 @@ function FixPodman{
 }
 
 function RemoveAll{
-    RemoveVpnKit($wslDistro)
+    RemoveVpnKit('wsl-vpnkit')
+    FindUbuntu
     wsl -t $wslDistro
-    winget uninstall $wslDistroFullName
+    wsl --unregister $wslDistro
+    # winget uninstall $wslDistroFullName
     Finish(0)
 }
 
