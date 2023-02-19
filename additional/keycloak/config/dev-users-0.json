@@ -1,0 +1,18 @@
+{
+  "realm" : "dev",
+  "users" : [ {
+    "id" : "1554e62c-4eb1-4815-b2d1-64c3394fcd42",
+    "createdTimestamp" : 1676767411736,
+    "username" : "test",
+    "enabled" : true,
+    "totp" : false,
+    "emailVerified" : false,
+    "email" : "test@example.org",
+    "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-dev" ],
+    "notBefore" : 0,
+    "groups" : [ ]
+  } ]
+}

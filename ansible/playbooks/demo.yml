@@ -1,6 +1,9 @@
 - name: wsl podman infra demo
   hosts: wsl
   vars:
+    git:
+      local: "{{ lookup('env', 'HOME') }}/git/wsl-podman-infra"
+      upstream: "https://github.com/Gee2k/wsl-podman-infra.git"
     zookeeper: 
       name: "zookeeper"
       image: "docker.io/zookeeper:3.8.0"
@@ -10,6 +13,10 @@
     postgres:
       name: "postgres"
       image: "docker.io/postgres:14.4"
+    keycloak:
+      name: "keycloak"
+      image: "quay.io/keycloak/keycloak:18.0.2-legacy"
+      config: "{{ git.local }}/additional/keycloak/config"
   collections:
     - containers.podman
   tasks:
@@ -17,7 +24,16 @@
       tags:
       - provision
       ansible.builtin.debug:
-        msg: "windows user: {{ user }}, home: {{ lookup('env', 'HOME')}}"
+        msg: "windows user: {{ user }}, home: {{ lookup('env', 'HOME')}}, git path: {{ git.local }}, kc-config: {{ keycloak.config }}"
+
+    - name: git config checkout
+      tags:
+      - git
+      ansible.builtin.git:
+        repo: "{{ git.upstream }}"
+        dest: "{{ git.local }}"
+        depth: 1
+        accept_hostkey: "true"
 
     #
     # zookeeper
@@ -108,9 +124,52 @@
           POSTGRES_USER=postgres
           POSTGRES_DB=test_db
 
-      #
-      # removal tasks
-      #
+    #
+    # keycloak
+    #
+
+    - name: Create keycloak config directory if it does not exist
+      tags:
+      - provision
+      ansible.builtin.file:
+        path: "{{ keycloak.config }}"
+        state: directory
+        mode: '0755'
+
+    - name: pull {{ keycloak.name }} image {{ keycloak.image }}
+      tags:
+      - pull
+      - provision
+      podman_image:
+        name: "{{ keycloak.image }}"
+
+    - name: run {{ keycloak.name }}
+      tags:
+      - run
+      - provision
+      podman_container:
+        name: "{{ keycloak.name }}"
+        image: "{{ keycloak.image }}"
+        state: started
+        ports:
+          - "127.0.0.1:8080:8080/tcp"
+        env:
+          KEYCLOAK_USER=admin
+          KEYCLOAK_PASSWORD=admin
+        volume:
+          - "{{ keycloak.config }}:/opt/jboss/keycloak/config:ro" # import
+          # - "{{ keycloak.config }}:/opt/jboss/keycloak/config:rw" #export
+        # userns: keep-id # user sync for write permission on export
+        command:
+          # import
+          - "-b 0.0.0.0 -Dkeycloak.migration.action=import -Dkeycloak.migration.provider=dir -Dkeycloak.migration.strategy=OVERWRITE_EXISTING -Dkeycloak.profile.feature.upload_scripts=enabled -Dkeycloak.migration.dir=/opt/jboss/keycloak/config"
+          
+          # export
+          # - "-Dkeycloak.migration.action=export -Dkeycloak.migration.provider=dir -Dkeycloak.migration.dir=/opt/jboss/keycloak/config"
+
+    #
+    # removal tasks
+    #
 
     - name: remove {{ zookeeper.name }} container
       tags:
@@ -153,4 +212,18 @@
       - remove
       podman_image:
         name: "{{ postgres.image }}"
+        state: absent
+
+    - name: remove {{ keycloak.name }} container
+      tags:
+      - remove
+      podman_container:
+        name: "{{ keycloak.name }}"
+        state: absent
+    
+    - name: remove {{ keycloak.name }} image
+      tags:
+      - remove
+      podman_image:
+        name: "{{ keycloak.image }}"
         state: absent

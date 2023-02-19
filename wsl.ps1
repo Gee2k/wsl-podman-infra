@@ -52,7 +52,7 @@ function Menu{
     Write-Host "[4] setup distro"
     Write-Host "[5] provision distro"
     Write-Host "----------------[ remove ]----------------"
-    Write-Host "[6] fix podman after restart"
+    Write-Host "[6] reprovision distro (fix podman after restart)"
     Write-Host "[7] remove all (vpnkit and distro)"
     Write-Host "[8] podman status"
 
@@ -201,7 +201,7 @@ function Provision{
     Write-Debug "Provisioning distro"
     wsl ansible-galaxy collection install containers.podman
 
-    wsl wslpath $PWD.Path.Replace('\','/') '|' xargs -i ansible-playbook '{}/ansible/playbooks/demo.yml' -i '{}/ansible/hosts' --connection=local --extra-vars="user=$env:username" --tags "provision"
+    wsl wslpath $PWD.Path.Replace('\','/') '|' xargs -i ansible-playbook '{}/ansible/playbooks/demo.yml' -i '{}/ansible/hosts' --connection=local --extra-vars="user=$env:username" --tags "provision, git"
 }
 
 ### util
